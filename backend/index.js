@@ -1,85 +1,125 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
-const jwt = require('jsonwebtoken'); // Importamos la seguridad
+const jwt = require('jsonwebtoken');
+const cors = require('cors'); // <--- 1. IMPORTAMOS CORS
+
+// Importamos los modelos
 const Project = require('./models/Project');
-const User = require('./models/User'); // Importamos al usuario
+const User = require('./models/User');
+const Post = require('./models/Post'); // <--- Modelo del Blog
 
 const app = express();
-const PUERTO = process.env.PORT || 5000;
 
-app.use(cors());
+// --- CONFIGURACIONES ---
+// 2. USAMOS CORS (Permite que el Frontend 5173 hable con este Backend 5000)
+app.use(cors()); 
+
 app.use(express.json());
 
-// Conexión a Base de Datos
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('¡Conectado a MongoDB! 🍉'))
-  .catch((err) => console.error(err));
+// Clave secreta para el token
+const JWT_SECRET = 'secreto_super_seguro';
 
-// --- MIDDLEWARE DE SEGURIDAD (El Guardia) ---
-// Esta función revisa si traes la "pulsera" (Token)
+// --- CONEXIÓN A MONGODB ---
+// Usamos tu dirección que ya tiene el usuario correcto
+mongoose.connect('mongodb+srv://KevinSex08:kevin123@cluster0.a1ydets.mongodb.net/portafolio?retryWrites=true&w=majority')
+  .then(() => console.log('✅ Conectado a MongoDB Atlas'))
+  .catch(err => console.error('❌ Error de conexión:', err));
+
+// --- MIDDLEWARE DE SEGURIDAD (Verifica el Token) ---
 const verificarToken = (req, res, next) => {
-  const token = req.headers['authorization']; 
-  
-  if (!token) return res.status(403).json({ error: "¡Alto ahí! No tienes permiso (Falta Token)" });
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  try {
-    const decodificado = jwt.verify(token, process.env.JWT_SECRET);
-    req.usuario = decodificado;
-    next(); // Pasa, todo bien
-  } catch (error) {
-    res.status(401).json({ error: "Token falso o expirado" });
-  }
+    if (!token) return res.status(401).json({ error: 'Acceso denegado' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Token inválido' });
+        req.user = user;
+        next();
+    });
 };
 
-// --- RUTAS PÚBLICAS (Cualquiera puede verlas) ---
+// ================= RUTAS =================
 
-app.get('/', (req, res) => {
-  res.send('API Funcionando 🚀');
-});
-
-// Ver proyectos (GET) - Esto debe ser público para que la gente vea tu portafolio
-app.get('/api/projects', async (req, res) => {
-  const proyectos = await Project.find();
-  res.json(proyectos);
-});
-
-// Login (POST) - Aquí canjeas usuario/contraseña por un Token
+// 1. LOGIN
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  
-  // Buscamos al usuario admin
-  const user = await User.findOne({ username });
-  
-  // Si no existe o la contraseña está mal
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: "Credenciales incorrectas" });
-  }
-
-  // Si todo ok, creamos el token
-  const token = jwt.sign(
-    { id: user._id, username: user.username },
-    process.env.JWT_SECRET,
-    { expiresIn: '2h' }
-  );
-
-  res.json({ token, username: user.username });
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    
+    if (!user || user.password !== password) {
+        return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+    
+    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '2h' });
+    res.json({ token });
 });
 
-// --- RUTAS PRIVADAS (Solo el Admin entra) ---
+// 2. PROYECTOS (Público)
+app.get('/api/projects', async (req, res) => {
+    try {
+        const projects = await Project.find();
+        res.json(projects);
+    } catch (error) {
+        res.status(500).json({ error: "Error al obtener proyectos" });
+    }
+});
 
-// Guardar proyecto (POST) - ¡AHORA TIENE CANDADO! (verificarToken)
+// 3. PROYECTOS (Privado)
 app.post('/api/projects', verificarToken, async (req, res) => {
-  try {
-    const nuevoProyecto = new Project(req.body);
-    await nuevoProyecto.save();
-    res.json(nuevoProyecto);
-  } catch (error) {
-    res.status(500).json({ error: "Error al guardar" });
-  }
+    try {
+        const nuevoProyecto = new Project(req.body);
+        await nuevoProyecto.save();
+        res.status(201).json(nuevoProyecto);
+    } catch (error) {
+        res.status(500).json({ error: "Error al guardar proyecto" });
+    }
 });
 
-app.listen(PUERTO, () => {
-  console.log(`Servidor seguro corriendo en puerto ${PUERTO} 🔒`);
+// 4. BLOG (Público)
+app.get('/api/posts', async (req, res) => {
+    try {
+        const posts = await Post.find().sort({ fecha: -1 });
+        res.json(posts);
+    } catch (error) {
+        res.status(500).json({ error: "Error al traer los posts" });
+    }
+});
+
+// 5. BLOG (Privado)
+app.post('/api/posts', verificarToken, async (req, res) => {
+    try {
+        const nuevoPost = new Post({
+            titulo: req.body.titulo,
+            contenido: req.body.contenido,
+            imagen: req.body.imagen
+        });
+        await nuevoPost.save();
+        res.status(201).json(nuevoPost);
+    } catch (error) {
+        res.status(500).json({ error: "Error al crear el post" });
+    }
+});
+
+// --- 🚑 RUTA DE EMERGENCIA (La magia para crear tu usuario) ---
+app.get('/crear-admin-urgente', async (req, res) => {
+    try {
+        // Esto creará el usuario "kevin" con contraseña "kevin123"
+        await User.deleteOne({ username: 'kevin' }); // Borra el viejo si existe
+        
+        const nuevoUsuario = new User({ 
+            username: 'kevin', 
+            password: 'kevin123' 
+        });
+        
+        await nuevoUsuario.save();
+        res.send("<h1>🎉 ¡ÉXITO! Usuario 'kevin' creado. Ya puedes ir a loguearte.</h1>");
+    } catch (error) {
+        res.send(`<h1>❌ Error: ${error.message}</h1>`);
+    }
+});
+
+// --- INICIAR SERVIDOR ---
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
 });

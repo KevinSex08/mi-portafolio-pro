@@ -1,33 +1,35 @@
-require('dotenv').config();
+require('dotenv').config(); // Carga el archivo .env
 const mongoose = require('mongoose');
 const User = require('./models/User');
 
-// --- TUS DATOS (CÁMBIALOS AQUÍ) ---
-const MI_USUARIO = "kevin"; 
-const MI_PASSWORD = "kevin123"; 
-// ----------------------------------
-
 const crearAdmin = async () => {
   try {
-    // Conectamos a la Base de Datos
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("Conectado a la BD...");
+    // Usamos la variable del archivo .env
+    const dbUrl = process.env.MONGO_URI;
 
-    // 1. Borramos si ya existía algún admin (para no tener duplicados)
-    await User.deleteMany({ username: MI_USUARIO });
+    if (!dbUrl) {
+      console.error("❌ ERROR: No encuentro la variable MONGO_URI en el archivo .env");
+      return;
+    }
 
-    // 2. Te creamos a ti
+    await mongoose.connect(dbUrl);
+    console.log("✅ Conectado a la BD...");
+
+    // 1. Borramos usuario viejo
+    await User.deleteMany({ username: 'kevin' });
+
+    // 2. Creamos usuario nuevo
     const nuevoAdmin = new User({
-      username: MI_USUARIO,
-      password: MI_PASSWORD
+      username: 'kevin',
+      password: 'kevin123'
     });
 
     await nuevoAdmin.save();
-    console.log("¡Usuario Admin Creado con Éxito! 👮‍♂️ Ya puedes cerrar este archivo.");
+    console.log("🎉 ¡Usuario 'kevin' creado con éxito!");
     
     mongoose.connection.close();
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error grave:", error);
   }
 };
 

@@ -11,7 +11,7 @@ function Login({ onLogin }) {
     
     try {
         // IMPORTANTE: Usa TU link de Render aquí
-        const respuesta = await fetch('https://api-portafolio-kferazo.onrender.com/api/login', {
+        const respuesta = await fetch('https://api-portafolio-kferazo.onrender.com', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
