@@ -8,7 +8,7 @@ function Login({ onLogin }) {
     e.preventDefault();
     
     // Pedimos permiso al servidor
-    const respuesta = await fetch('http://localhost:5000/api/login', {
+    const respuesta = await fetch('https://api-portafolio-kferazo.onrender.com/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })

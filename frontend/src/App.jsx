@@ -7,7 +7,7 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token')); // ¿Tenemos pulsera guardada?
 
   const cargarProyectos = () => {
-    fetch('http://localhost:5000/api/projects')
+    fetch('https://api-portafolio-kferazo.onrender.com/api/projects')
       .then(respuesta => respuesta.json())
       .then(datos => setProyectos(datos.reverse()))
       .catch(error => console.error("Error:", error))

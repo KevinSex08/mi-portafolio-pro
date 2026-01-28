@@ -15,7 +15,7 @@ const enviarFormulario = async (e) => {
     // RECUPERAMOS EL TOKEN DEL BOLSILLO
     const token = localStorage.getItem('token');
 
-    const respuesta = await fetch('http://localhost:5000/api/projects', {
+    const respuesta = await fetch('https://api-portafolio-kferazo.onrender.com/api/projects', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
